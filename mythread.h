@@ -63,12 +63,15 @@ semaphore_t ** semaphore_table;
 int current_semaphores;
 
 /**
- * Initializes all the global data structures for the thread system.
+ * Initialises all the global data structures for the thread system.
  */
 int	mythread_init() {
 
-	//  initialized the semaphores table
+	//  initialises the semaphores table.
+	semaphore_table = malloc(SEMAPHORE_MAX * sizeof semaphore_t);
 	// and set the total number of active semaphore count to zero
+	runqueue = list_create(NULL);
+	current_semaphores = 0;
 
 	return 0;
 }
@@ -176,7 +179,7 @@ void semaphore_wait(int semaphore) {
 	s->count--;
 
 	if (s < 0) {
-		enqueue(s->thread_queue, current_thread);
+		list_append(s->thread_queue, current_thread);
 		
 		thread_switch();
 	}
@@ -192,9 +195,9 @@ void semaphore_signal(int semaphore) {
 	s->count++;
 
 	if (s->count <= 0) {
-		enqueue(runqueue, dequeue(s->thread_queue));
+		list_append(runqueue, list_shift(s->thread_queue));
 		
-		thread_switch();
+		//thread_switch();
 	}
 }
 /**

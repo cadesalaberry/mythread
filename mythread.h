@@ -84,32 +84,62 @@ int	mythread_init() {
 int	mythread_create(char *threadname, void (*threadfunc) (), int stacksize) {
 
 	int error = 0;
+	int id = current_threads;
 	my_control_block block;
+	ucontext_t context;
 
-	// Allocates the stack.
-	
-
-	// Sets up the user context appropriately.
-
-	// Runs the threadfunc() function when the thread starts.
-	
-	// The threadname is stored in thread control block and is then printed
-	block.thread_name = threadname;
-	block.thread_id = current_threads;
-	block.state = RUNNING;
-	clock_settime(CLOCK_MONOTONIC, &block.start_time);
-	block.run_time = 0;
-
-	// the newly created thread might be included in the runqueue.
-	
-	if (error) {
-		printf("Error found while creating thread #%d\n", current_threads);
-		return -1;
+	// Checks input.
+	if (stacksize > THREAD_STACK_SIZE) {
+		printf("Error:Max thread stack reached.\n");
+	} else if (current_threads > THREAD_MAX) {
+		printf("Error:Max number of threads reached.\n");
 	} else {
-		printf("THread #%d (%s) created successfully.\n", current_threads, threadname);
-		// Returns the id of the thread and update the number of threads.
-		return current_threads++;
+		// If no errors are found, proceed.
+
+		// Allocates the stack.
+		
+
+		// Sets up the user context appropriately.
+		if(!getcontext(&context)) {
+			context.uc_link = &uctx_main;
+			context.uc_stack.ss_sp = malloc(stacksize);
+			context.uc_stack.ss_size = stacksize;
+			context.uc_stack.ss_flags = 0
+			sigemptyset(&context.uc_sigmask);
+
+			block.context = context;
+		} else {
+
+			printf("Error:Cannot get context.\n");
+			error++;
+		}
+
+		// The threadname is stored in thread control block and is then printed
+		block.thread_name = threadname;
+		block.thread_id = id;
+		block.state = RUNNING;
+		clock_settime(CLOCK_MONOTONIC, &block.start_time);
+		block.run_time = 0;
+
+		if (!error) {
+
+			// Runs the threadfunc() function when the thread starts.
+			makecontext(&block.context, threadfunc, 0);
+
+			// the newly created thread is included in the runqueue.
+			list_append_int(runqueue, id);
+			thread_table[id] = block;
+
+
+			printf("Thread #%d (%s) created successfully.\n", id, threadname);
+			// Returns the id of the thread and update the number of threads.
+			current_threads++
+			return id;
+		}
 	}
+
+	printf("Error:Creation of thread #%d was not successful.\n", id);
+	return -1;
 }
 
 /**

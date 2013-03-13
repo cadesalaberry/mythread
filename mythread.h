@@ -14,7 +14,7 @@
 #define THREAD_NAME_LEN 100
 #define THREAD_MAX 128
 #define SEMAPHORE_MAX 128
-#define THREAD_STACK_SIZE 4096
+#define THREAD_STACK_SIZE 6005
 #define QUANTUM_N_SIZE 60000
 
 
@@ -39,7 +39,7 @@ typedef struct _my_control_block {
 	int thread_id;
 	enum thread_state state;
 	struct timespec start_time;
-	double run_time;
+	unsigned long long run_time;
 
 } my_control_block;
 
@@ -97,16 +97,16 @@ int	mythread_create(char *threadname, void (*threadfunc) (), int stacksize) {
 		// If no errors are found, proceed.
 
 		// Allocates the stack.
-		
 
 		// Sets up the user context appropriately.
 		if(!getcontext(&context)) {
 			context.uc_link = &uctx_main;
 			context.uc_stack.ss_sp = malloc(stacksize);
 			context.uc_stack.ss_size = stacksize;
-			context.uc_stack.ss_flags = 0
+			context.uc_stack.ss_flags = 0;
 			sigemptyset(&context.uc_sigmask);
 
+			// Link to the control block.
 			block.context = context;
 		} else {
 
@@ -114,11 +114,11 @@ int	mythread_create(char *threadname, void (*threadfunc) (), int stacksize) {
 			error++;
 		}
 
-		// The threadname is stored in thread control block and is then printed
+		// Stores the thread properties in thread control block.
 		block.thread_name = threadname;
 		block.thread_id = id;
 		block.state = RUNNING;
-		clock_settime(CLOCK_MONOTONIC, &block.start_time);
+		//clock_gettime(CLOCK_MONOTONIC, &block.start_time);
 		block.run_time = 0;
 
 		if (!error) {
@@ -126,14 +126,14 @@ int	mythread_create(char *threadname, void (*threadfunc) (), int stacksize) {
 			// Runs the threadfunc() function when the thread starts.
 			makecontext(&block.context, threadfunc, 0);
 
+			thread_table[id] = &block;
+
 			// the newly created thread is included in the runqueue.
 			list_append_int(runqueue, id);
-			thread_table[id] = block;
-
 
 			printf("Thread #%d (%s) created successfully.\n", id, threadname);
 			// Returns the id of the thread and update the number of threads.
-			current_threads++
+			current_threads++;
 			return id;
 		}
 	}
@@ -150,7 +150,7 @@ int	mythread_create(char *threadname, void (*threadfunc) (), int stacksize) {
  */
 void mythread_exit() {
 
-	;
+	current_thread->state = EXIT;
 }
 
 /**
@@ -192,10 +192,27 @@ void set_quantum_size(int quantum) {
 void mythread_state() {
 
 	printf("Thread Info:\n");
-	printf("Name:\t\t\n");
-	printf("State:\t\t\n");
-	printf("CPU Time:\t\n");
-	;
+	printf("%-16s %-12s %-16s","Name","State","Time");
+
+	int id;
+	char * state;
+	for(id = 0; id < current_threads; id++) {
+		
+		switch(thread_table[id]->state) {
+
+			case RUNNING: state = "RUNNING"; break;
+			case RUNNABLE: state = "RUNNABLE"; break;
+			case BLOCKED: state = "BLOCKED"; break;
+			case EXIT: state = "EXIT"; break;
+		
+			default: state = "DEFAULT"; break;
+		}
+		printf("%-16s ", thread_table[id]->thread_name);
+		printf("%-12s ", state);
+		printf("%llu\n", thread_table[id]->run_time);
+	}
+
+	printf("\n");
 }
 
 void evict_thread() {
@@ -252,7 +269,6 @@ void semaphore_signal(int semaphore) {
  * Removes a semaphore from the system.
  * A call to this function while threads are waiting
  * on the semaphore should fail.
-
  */
 int destroy_semaphore(int semaphore) {
 

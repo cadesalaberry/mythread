@@ -35,7 +35,7 @@ enum thread_state {
 typedef struct _my_control_block {
 
 	ucontext_t context;
-	char thread_name[THREAD_NAME_LEN];
+	char * thread_name;
 	int thread_id;
 	enum thread_state state;
 	struct timespec start_time;
@@ -68,10 +68,11 @@ int current_semaphores;
 int	mythread_init() {
 
 	//  initialises the semaphores table.
-	semaphore_table = malloc(SEMAPHORE_MAX * sizeof semaphore_t);
+	semaphore_table = malloc(SEMAPHORE_MAX * sizeof(semaphore_t));
 	// and set the total number of active semaphore count to zero
 	runqueue = list_create(NULL);
 	current_semaphores = 0;
+	current_threads = 0;
 
 	return 0;
 }
@@ -82,16 +83,33 @@ int	mythread_init() {
  */
 int	mythread_create(char *threadname, void (*threadfunc) (), int stacksize) {
 
-	/*
-	This function is responsible for allocating the stack and setting up the user
-	context appropriately. The newly created thread starts running the
-	threadfunc() function when it starts.
-	The threadname is stored in the thread control block and is printed
-	for information purposes. A newly created thread is in the RUNNABLE state
-	when it is inserted into the system. Depending on your system design, the
-	newly created thread might be included in the runqueue.
-	*/
-	return 0;
+	int error = 0;
+	my_control_block block;
+
+	// Allocates the stack.
+	
+
+	// Sets up the user context appropriately.
+
+	// Runs the threadfunc() function when the thread starts.
+	
+	// The threadname is stored in thread control block and is then printed
+	block.thread_name = threadname;
+	block.thread_id = current_threads;
+	block.state = RUNNING;
+	clock_settime(CLOCK_MONOTONIC, &block.start_time);
+	block.run_time = 0;
+
+	// the newly created thread might be included in the runqueue.
+	
+	if (error) {
+		printf("Error found while creating thread #%d\n", current_threads);
+		return -1;
+	} else {
+		printf("THread #%d (%s) created successfully.\n", current_threads, threadname);
+		// Returns the id of the thread and update the number of threads.
+		return current_threads++;
+	}
 }
 
 /**
@@ -110,7 +128,7 @@ void mythread_exit() {
  */
 int mythread_id() {
 
-	return 0;
+	return current_thread->thread_id;
 }
 /**
  * Switches control from the main thread
@@ -120,7 +138,7 @@ int mythread_id() {
  */
 void runthreads() {
 
-	/** Store context
+	/** Store contextw
 	ualarm(quantum)?
 	put current thread at ent of stack
 	get next thread on stack
@@ -134,7 +152,7 @@ void runthreads() {
  */
 void set_quantum_size(int quantum) {
 
-	;
+	quantum_size = quantum;
 }
 
 /**
@@ -181,7 +199,7 @@ void semaphore_wait(int semaphore) {
 	if (s < 0) {
 		list_append(s->thread_queue, current_thread);
 		
-		thread_switch();
+		// Thread switch
 	}
 }
 

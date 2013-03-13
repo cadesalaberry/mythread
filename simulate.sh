@@ -1,6 +1,6 @@
-if [ -e ./*a.o ]
-	then make clean
+if [ -e ./*.o ]
+	then make clean > /dev/null
 fi
-make tester
+make tester > /dev/null
 ./mythread
-#make clean > /dev/null
+make clean > /dev/null

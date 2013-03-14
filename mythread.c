@@ -68,8 +68,8 @@ int main()
     }
 
     /* Print threads informations before run */
-    //mythread_state();
-    //printf("WAZA\n"); exit(0);
+    mythread_state();
+    printf("WAZA\n"); exit(0);
     /* When this function returns, all threads should have exited. */
     runthreads();
     

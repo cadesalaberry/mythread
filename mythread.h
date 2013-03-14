@@ -53,13 +53,16 @@ typedef struct _semaphore_t {
 
 
 my_control_block ** thread_table;
-int current_threads;
-int my_threads_init;
-ucontext_t uctx_main;
-List * runqueue;
-int quantum_size;
 my_control_block * current_thread;
-semaphore_t ** semaphore_table;
+int current_threads;
+
+ucontext_t uctx_main;
+
+List * runqueue;
+
+int quantum_size;
+
+semaphore_t semaphore_table[SEMAPHORE_MAX];
 int current_semaphores;
 
 /**
@@ -80,13 +83,48 @@ void updateRuntimeOfThread(int thread_id) {
 	unsigned long long delta_t = t - thread_table[thread_id]->start_time;
 	thread_table[thread_id]->run_time += delta_t;
 }
+
+/**
+ * Prints the state of all threads that are maintained by the library
+ * at any given time.
+ */
+void mythread_state() {
+
+	printf("Thread Info:\n");
+	printf("%-16s %-12s %-16s\n","Name","State","Time");
+
+	int id;
+	char * state;
+	for(id = 0; id < current_threads; id++) {
+		//printf("%i\n", thread_table[id]->state);
+		switch(thread_table[id]->state) {
+
+			case RUNNING: state = "RUNNING"; break;
+			case RUNNABLE: state = "RUNNABLE"; break;
+			case BLOCKED: state = "BLOCKED"; break;
+			case EXIT: state = "EXIT"; break;
+		
+			default: state = "DEFAULT"; break;
+		}
+
+		//exit(0);
+		printf("%s ", thread_table[id]->thread_name);
+		exit(0);
+		printf("%-12s ", state);
+		printf("%llu\n", thread_table[id]->run_time);
+		
+	}
+
+	printf("\n");
+}
+
 /**
  * Initialises all the global data structures for the thread system.
  */
 int	mythread_init() {
 
 	//  initialises the semaphores table.
-	semaphore_table = malloc(SEMAPHORE_MAX * sizeof(semaphore_t));
+	//semaphore_table = malloc(SEMAPHORE_MAX * sizeof(semaphore_t));
 
 	// and set the total number of active semaphore count to zero
 	runqueue = list_create(NULL);
@@ -146,6 +184,7 @@ int	mythread_create(char *threadname, void (*threadfunc) (), int stacksize) {
 			// the newly created thread is included in the runqueue.
 			list_append_int(runqueue, id);
 
+			printf("%d\n", block.context.uc_stack.ss_size);
 			printf("Thread #%d (%s) created successfully.\n", id, threadname);
 			
 			// Returns the id of the thread and update the number of threads.
@@ -179,21 +218,106 @@ int mythread_id() {
 
 	return current_thread->thread_id;
 }
+
+/**
+ * Returns the ID of the current thread.
+ */
+int mythread_switch() {
+
+	if(!list_empty(runqueue)) {
+		
+		int id = list_shift_int(runqueue);
+		my_control_block * new_thread = thread_table[id];
+		
+		if (new_thread->state == EXIT) {
+
+			// Nothing to do.
+		} else if (new_thread->state != RUNNABLE) {
+
+			list_append_int(runqueue, id);
+		} else {
+
+			// Saves the context of the running thread.
+			getcontext(&current_thread->context);
+			updateRuntimeOfThread(current_thread->thread_id);
+			current_thread->state = RUNNABLE;
+			list_append_int(runqueue, current_thread->thread_id);
+
+			// Gets the next thread ready.
+			new_thread->start_time = getTime();
+			new_thread->state = RUNNING;
+			setcontext(&new_thread->context);
+
+			printf("Swapping from #%d to", current_thread->thread_id);
+			printf(" to #%d.\n", id);
+			current_thread = new_thread;
+		}
+	} else {
+
+		printf("Success: All threads finished their job.\n");
+		setcontext(&uctx_main);
+	}
+
+	return current_thread->thread_id;
+}
+
 /**
  * Switches control from the main thread
  * to one of the threads in the runqueue.
- * Also activates the thread switcher ( interval timer that triggers
- * context switches every quantum nanoseconds.
+ * Also activates the thread switcher (interval timer that triggers
+ * context switches every quantum nanoseconds).
  */
 void runthreads() {
 
+	sigset_t sig;
+	sigemptyset(&sig);
+	sigaddset(&sig,SIGALRM);
+	sigprocmask(SIG_BLOCK,&sig,NULL); // Blocks signal
 	/** Store contextw
 	ualarm(quantum)?
-	put current thread at ent of stack
+	put current thread at end of stack
 	get next thread on stack
 	swap context
 	*/
-	;
+
+	// Sets the quantum timer
+	struct itimerval t;
+	t.it_interval.tv_sec = 0;
+	t.it_interval.tv_usec = quantum_size;
+	t.it_value.tv_sec = 0;
+	t.it_value.tv_usec = quantum_size;
+	setitimer(ITIMER_REAL, &t, 0);
+
+	
+
+	sigprocmask(SIG_UNBLOCK, &sig, NULL);
+
+	if(!list_empty(runqueue)) {
+
+		int id = list_shift_int(runqueue);
+		my_control_block * thread = thread_table[id];
+
+		thread->state = RUNNING;
+		thread->start_time = getTime();
+
+		printf("Starting to swap between threads\n");
+		//swapcontext(&uctx_main, &thread->context);
+		getcontext(&uctx_main);
+		printf("ss_size: %d\n", thread->context.uc_stack.ss_size);
+		//setcontext(&thread->context);
+		exit(0);
+		if(swapcontext(&uctx_main, &thread->context) == -1) {
+
+			printf("Error:Running thread #%d did not suceed.\n", id);
+			return;
+		}
+		
+		// Activates the thread switcher
+		sigset(SIGALRM, &mythread_switch);
+
+	}
+
+	sigprocmask(SIG_BLOCK, &sig, NULL);
 }
 
 /**
@@ -202,36 +326,6 @@ void runthreads() {
 void set_quantum_size(int quantum) {
 
 	quantum_size = quantum;
-}
-
-/**
- * Prints the state of all threads that are maintained by the library
- * at any given time.
- */
-void mythread_state() {
-
-	printf("Thread Info:\n");
-	printf("%-16s %-12s %-16s","Name","State","Time");
-
-	int id;
-	char * state;
-	for(id = 0; id < current_threads; id++) {
-		
-		switch(thread_table[id]->state) {
-
-			case RUNNING: state = "RUNNING"; break;
-			case RUNNABLE: state = "RUNNABLE"; break;
-			case BLOCKED: state = "BLOCKED"; break;
-			case EXIT: state = "EXIT"; break;
-		
-			default: state = "DEFAULT"; break;
-		}
-		printf("%-16s ", thread_table[id]->thread_name);
-		printf("%-12s ", state);
-		printf("%llu\n", thread_table[id]->run_time);
-	}
-
-	printf("\n");
 }
 
 void evict_thread() {
@@ -255,11 +349,14 @@ int create_semaphore(int value) {
 
 	int id = current_semaphores;
 
-	semaphore_table[id]->initial = value;
-	semaphore_table[id]->count = value;
-	semaphore_table[id]->thread_queue = list_create(NULL);
-	
+	semaphore_t s = {
+		.initial= value,
+		.count = value,
+		.thread_queue = list_create(NULL)};
+
+	semaphore_table[id] = s;
 	current_semaphores++;
+
 	return id;
 }
 
@@ -269,7 +366,7 @@ int create_semaphore(int value) {
  */
 void semaphore_wait(int semaphore) {
 
-	semaphore_t * s = semaphore_table[semaphore];
+	semaphore_t * s = &semaphore_table[semaphore];
 	
 	sigset_t sig;
 	sigemptyset(&sig);
@@ -294,7 +391,7 @@ void semaphore_wait(int semaphore) {
  */
 void semaphore_signal(int semaphore) {
 
-	semaphore_t * s = semaphore_table[semaphore];
+	semaphore_t * s = &semaphore_table[semaphore];
 	
 	sigset_t sig;
 	sigemptyset(&sig);
@@ -307,7 +404,7 @@ void semaphore_signal(int semaphore) {
 		current_thread->state = RUNNABLE;
 		list_append(runqueue, list_shift(s->thread_queue));
 		
-		//thread_switch();
+		mythread_switch();
 	}
 
 	sigprocmask(SIG_UNBLOCK,&sig,NULL);
@@ -319,7 +416,7 @@ void semaphore_signal(int semaphore) {
  */
 int destroy_semaphore(int semaphore) {
 
-	semaphore_t * s = semaphore_table[semaphore];
+	semaphore_t * s = &semaphore_table[semaphore];
 
 	if(list_empty(s->thread_queue)) {
 

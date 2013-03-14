@@ -59,6 +59,7 @@ int main()
     /* 250 ms */
     set_quantum_size(250);
 
+
     counter_mutex = create_semaphore(1);
 
     for(j=0; j<thread_num; j++)
@@ -67,8 +68,8 @@ int main()
     }
 
     /* Print threads informations before run */
-    mythread_state();
-
+    //mythread_state();
+    //printf("WAZA\n"); exit(0);
     /* When this function returns, all threads should have exited. */
     runthreads();
     

@@ -15,3 +15,12 @@ Because this project is a library, I decided to put all the functions in a .h fi
 
 Also, because testing implied compiling and running the code a lot, I also made a simple [bash file](simulate.sh) to compile and run the provided code. I also provided a sample output in **sample_output**.
 
+I could not get rid of the following warning:
+
+	mythread.h:80:2: warning: implicit declaration of function ‘sigset’ [-Wimplicit-function-declaration]
+
+Even getting rid of the line:
+
+	#include<signal.h>
+
+trying to put it back somewhere else, I tried everything I knew, but I ended up letting it go...

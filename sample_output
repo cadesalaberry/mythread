@@ -1,0 +1,29 @@
+Thread Info:
+Name             State        Time (ns)       
+thread 0         RUNNABLE     0               
+thread 1         RUNNABLE     0               
+thread 2         RUNNABLE     0               
+thread 3         RUNNABLE     0               
+thread 4         RUNNABLE     0               
+thread 5         RUNNABLE     0               
+thread 6         RUNNABLE     0               
+thread 7         RUNNABLE     0               
+thread 8         RUNNABLE     0               
+thread 9         RUNNABLE     0               
+
+Thread Info:
+Name             State        Time (ns)       
+thread 0         EXIT         1498630         
+thread 1         EXIT         1495315         
+thread 2         EXIT         1497540         
+thread 3         EXIT         1498311         
+thread 4         EXIT         1498312         
+thread 5         EXIT         1498257         
+thread 6         EXIT         1498899         
+thread 7         EXIT         1497337         
+thread 8         EXIT         1501052         
+thread 9         EXIT         1498622         
+
+The counter is 50
+The result is 151402.656521
+>>> Thread library PASSED the Test 1

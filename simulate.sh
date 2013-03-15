@@ -1,6 +1,6 @@
 if [ -e ./mythread ]
-	then make clean #> /dev/null
+	then make clean > /dev/null
 fi
-make #tester #> /dev/null
+make > /dev/null
 ./mythread
-#make clean #> /dev/null
+make clean > /dev/null
